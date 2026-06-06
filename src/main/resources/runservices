@@ -1,0 +1,11 @@
+sudo cp springboot.service /etc/systemd/system/springboot.service
+sudo cp app.conf /etc/nginx/conf.d/app.conf
+
+sudo systemctl enable nginx
+sudo systemctl restart nginx
+
+
+sudo systemctl daemon-reload
+sudo systemctl enable springboot
+sudo systemctl start springboot
+sudo systemctl status springboot

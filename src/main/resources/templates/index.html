@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+    <head>
+        <title>North Harbor Financial Services</title>
+        <link th:href="@{/css/common.css}" rel="stylesheet" type="text/css">
+<script
+  src="https://code.jquery.com/jquery-3.7.1.min.js"
+  integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+  crossorigin="anonymous"></script>
+
+        <style>
+             body {
+                background-image: url("/northharbordemo/background.jpg");
+                background-position: center 80px;
+                background-repeat: no-repeat;
+             }
+        </style>
+        <script>
+        $(document).ready(function() {
+          $('#sidebar-btn').on('click', function() {
+            $('#sidebar').toggleClass('visible');
+          });
+        });
+        </script>
+       </head>
+    <body>
+      <div id="sidebar">
+        <ul>
+            <li><a th:href="@{/viewSymbols}">Symbols</a></li>
+            <li><a th:href="@{/viewLatest}">Latest</a></li>
+        </ul>
+
+        <div id="sidebar-btn">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+      <div class="title">
+         <h1>North Harbor Financial Services</h1>
+      </div>
+    </body>
+</html>
