@@ -32,6 +32,7 @@ public class HomeController {
     public ModelAndView viewLatest(Model model, @RequestParam(required = false, defaultValue = "EUR") String currency) {
         model.addAttribute("latestList", financialService.retrieveLatestAsCurrencyItem(currency));
         model.addAttribute("currencies", Arrays.asList("EUR", "USD", "CHF", "GBP"));
+        model.addAttribute("selectedCurrency", currency);
         return new ModelAndView("view-latest");
     }
 
