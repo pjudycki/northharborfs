@@ -26,10 +26,10 @@
 	</script>
 </head>
 <style>
-         body {
-            background-color: #8fa8c4;        
-         }
-</style>	
+body {
+	background-color: #8fa8c4;
+}
+</style>
 <body>
 	<table id="symbols_table">
 		<thead>
@@ -39,10 +39,10 @@
 			</tr>
 		</thead>
 		<tbody>
-		<tr th:each="symbolItem : ${symbolList}">
-			<td th:text="${symbolItem.currencyCode}"></td>
-			<td th:text="${symbolItem.currencyName}"></td>
-		</tr>
+			<tr th:each="symbolItem : ${symbolList}">
+				<td th:text="${symbolItem.currencyCode}"></td>
+				<td th:text="${symbolItem.currencyName}"></td>
+			</tr>
 		</tbody>
 	</table>
 </body>

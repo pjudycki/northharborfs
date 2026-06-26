@@ -9,3 +9,5 @@ sudo systemctl daemon-reload
 sudo systemctl enable springboot
 sudo systemctl start springboot
 sudo systemctl status springboot
+
+sudo journalctl -u springboot -n 100 --no-pager
