@@ -51,7 +51,7 @@ public class GetExchangeRates {
 
 
     //@Scheduled(fixedDelay = 60000)
-    @PostConstruct
+    //@PostConstruct
     public void processAndSave() {
         CurrencyList result = financialService.retrieveLatest("EUR", null);
         processAndSaveForCurrency(result);
