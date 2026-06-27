@@ -3,6 +3,9 @@ package com.northharbor.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.northharbor.generator.ReportGenerator;
+import com.northharbor.model.CurrencyList;
+import com.northharbor.repository.SymbolRepository;
 import com.northharbor.configuration.NorthHarborConfigurationProperties;
 import com.northharbor.model.*;
 import jakarta.annotation.PostConstruct;
@@ -14,7 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -34,6 +37,12 @@ public class FinancialService {
 
     @Autowired
     private RestTemplate restTemplate;
+    
+    @Autowired
+    private ReportGenerator reportGenerator;
+
+    @Autowired
+    private SymbolRepository symbolRepository;
 
 
     private String API_HOST;
@@ -186,7 +195,16 @@ public class FinancialService {
                 .map(s -> SymbolItem.builder().currencyCode(s.getKey()).currencyName(s.getValue()).build())
                 .collect(Collectors.toList());
     }
+    
+    public String generateHistoricalReport(String fileName, String base, String date) throws IOException {
+        CurrencyList historical = retrieveHistorical(base, null, date);
+        return reportGenerator.generateHistoricalReport(historical, fileName, base, date);
+    }
 
+    public String generateLatestReport(String fileName, String base) throws IOException {
+        CurrencyList latest = retrieveLatest(null, null);
+        return reportGenerator.generateLatestReport(latest, fileName, base);
+    }
 
 
     private void logHttpHeadersAndStatus(HttpHeaders httpHeaders, HttpStatusCode statusCode) {
@@ -202,6 +220,5 @@ public class FinancialService {
         builder.append("Response HTTP Headers list: ").append(responseHeaders);
         log.info(builder.toString());
     }
-
 }
 
