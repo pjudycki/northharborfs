@@ -8,10 +8,13 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Iterator;
@@ -21,93 +24,113 @@ import java.util.Map;
 @Slf4j
 public class ReportGenerator {
 
-    private static final String CURR_SHEET_NAME = "Currencies Rates Report";
-    private static final String TITLE = "Rates of Exchange by exchangeratesapi.io";
-    private static final String DATE = "Date";
+	private static final String CURR_SHEET_NAME = "Currencies Rates Report";
+	private static final String TITLE = "Rates of Exchange by exchangeratesapi.io";
+	private static final String DATE = "Date";
+	private static final Path REPORT_DIRECTORY = Paths.get("reports").toAbsolutePath().normalize();
 
-    public String generateHistoricalReport(CurrencyList historical, String fileName, String base, String date) throws IOException {
-        String resultFileName = createFileName(fileName + "_" + base, date);
-        Map<String, BigDecimal> currToRateOfExchange = convertToCurrency(historical, base);
-        generateExcelReport(resultFileName, currToRateOfExchange, base);
+	public String generateHistoricalReport(CurrencyList historical, String fileName, String base, String date)
+			throws IOException {
 
-        return resultFileName;
-    }
+		String resultFileName = createFileName(fileName + "_" + base, date);
+		Files.createDirectories(REPORT_DIRECTORY);
+		Path reportPath = REPORT_DIRECTORY.resolve(resultFileName).normalize();
 
-    public String generateLatestReport(CurrencyList latest, String fileName, String base) throws IOException {
-        String resultFileName = createFileName(fileName + "_" + base, LocalDate.now().toString());
-        Map<String, BigDecimal> currToRateOfExchange = convertToCurrency(latest, base);
-        generateExcelReport(resultFileName, currToRateOfExchange, base);
-        return resultFileName;
-    }
+		if (!reportPath.startsWith(REPORT_DIRECTORY)) {
+			throw new SecurityException("Invalid report path");
+		}
 
-    public void generateExcelReport(String fileName, Map<String, BigDecimal> currToRateOfExchange, String base) throws IOException {
-        XSSFWorkbook guaranaFsWorkbook = new XSSFWorkbook();
-        XSSFSheet currenciesSheet = guaranaFsWorkbook.createSheet(CURR_SHEET_NAME);
+		Map<String, BigDecimal> currToRateOfExchange = convertToCurrency(historical, base);
+		generateExcelReport(reportPath, currToRateOfExchange, base);
 
-        int rCounter = 0;
-        int cCounter = 0;
+		return resultFileName;
+	}
 
-        FileOutputStream fos = new FileOutputStream(fileName);
-        Row firstRow = currenciesSheet.createRow(rCounter++);
+	public Path generateLatestReport(CurrencyList latest, String fileName, String base) throws IOException {
 
-        Cell firstCell = firstRow.createCell(cCounter);
-        firstCell.setCellValue(TITLE);
+		String resultFileName = createFileName(fileName + "_" + base, LocalDate.now().toString());
+		Files.createDirectories(REPORT_DIRECTORY);
+		Path reportPath = REPORT_DIRECTORY.resolve(resultFileName).normalize();
 
-        Row secondRow = currenciesSheet.createRow(rCounter++);
+		if (!reportPath.startsWith(REPORT_DIRECTORY)) {
+			throw new SecurityException("Invalid report path");
+		}
 
-        LocalDateTime snapshotDate = LocalDateTime.now();
-        Cell secondCell = secondRow.createCell(cCounter++);
-        secondCell.setCellValue(DATE);
+		Map<String, BigDecimal> currToRateOfExchange = convertToCurrency(latest, base);
+		generateExcelReport(reportPath, currToRateOfExchange, base);
+		return reportPath;
+	}
 
-        Cell thirdCell = secondRow.createCell(cCounter++);
-        thirdCell.setCellValue(snapshotDate.toString());
-        cCounter = 0;
+	public void generateExcelReport(Path reportPath, Map<String, BigDecimal> currToRateOfExchange, String base)
+			throws IOException {
+		XSSFWorkbook northharborFsWorkbook = new XSSFWorkbook();
+		XSSFSheet currenciesSheet = northharborFsWorkbook.createSheet(CURR_SHEET_NAME);
 
-        Iterator<String> fields = currToRateOfExchange.keySet().iterator();
-        try {
-            while (fields.hasNext()) {
-                String name = fields.next();
-                BigDecimal value = currToRateOfExchange.get(name);
-                Row row = currenciesSheet.createRow(rCounter++);
-                addValuesToRow(name, value, row, cCounter, base);
-            }
-            guaranaFsWorkbook.write(fos);
-        } catch (IOException e) {
-            log.error(e.getMessage(), e);
-        } finally {
-            fos.flush();
-            fos.close();
-        }
-    }
+		int rCounter = 0;
+		int cCounter = 0;
 
-    private void addValuesToRow(String name, BigDecimal value, Row row, int cCounter, String base) {
-        Cell baseCell = row.createCell(cCounter++);
-        baseCell.setCellValue(base);
-        Cell nameCells = row.createCell(cCounter++);
-        nameCells.setCellValue(name);
-        Cell valueCells = row.createCell(cCounter++);
-        valueCells.setCellValue(value.doubleValue());
-    }
+		OutputStream fos = Files.newOutputStream(reportPath);
+		Row firstRow = currenciesSheet.createRow(rCounter++);
 
-    private Map<String, BigDecimal> convertToCurrency(CurrencyList allRates, String currency) {
-        Map<String, BigDecimal> rates = allRates.getRates();
-        BigDecimal rateOfExchange = rates.get(currency);
+		Cell firstCell = firstRow.createCell(cCounter);
+		firstCell.setCellValue(TITLE);
 
-        for (Map.Entry<String, BigDecimal> entry : rates.entrySet()) {
-            String name = entry.getKey();
-            BigDecimal value = entry.getValue();
-            BigDecimal converted = value.divide(rateOfExchange, 6, RoundingMode.HALF_UP);
-            rates.put(name, converted);
-        }
+		Row secondRow = currenciesSheet.createRow(rCounter++);
 
-        return rates;
-    }
+		LocalDateTime snapshotDate = LocalDateTime.now();
+		Cell secondCell = secondRow.createCell(cCounter++);
+		secondCell.setCellValue(DATE);
 
-    private String createFileName(String fileName, String date) {
-        StringBuilder result = new StringBuilder(fileName);
-        result.append("_");
-        result.append(date);
-        result.append(".xlsx");
-        return result.toString();
-    }
+		Cell thirdCell = secondRow.createCell(cCounter++);
+		thirdCell.setCellValue(snapshotDate.toString());
+		cCounter = 0;
+
+		Iterator<String> fields = currToRateOfExchange.keySet().iterator();
+		try {
+			while (fields.hasNext()) {
+				String name = fields.next();
+				BigDecimal value = currToRateOfExchange.get(name);
+				Row row = currenciesSheet.createRow(rCounter++);
+				addValuesToRow(name, value, row, cCounter, base);
+			}
+			northharborFsWorkbook.write(fos);
+		} catch (IOException e) {
+			log.error(e.getMessage(), e);
+		} finally {
+			northharborFsWorkbook.close();
+			fos.flush();
+			fos.close();
+		}
+	}
+
+	private void addValuesToRow(String name, BigDecimal value, Row row, int cCounter, String base) {
+		Cell baseCell = row.createCell(cCounter++);
+		baseCell.setCellValue(base);
+		Cell nameCells = row.createCell(cCounter++);
+		nameCells.setCellValue(name);
+		Cell valueCells = row.createCell(cCounter++);
+		valueCells.setCellValue(value.doubleValue());
+	}
+
+	private Map<String, BigDecimal> convertToCurrency(CurrencyList allRates, String currency) {
+		Map<String, BigDecimal> rates = allRates.getRates();
+		BigDecimal rateOfExchange = rates.get(currency);
+
+		for (Map.Entry<String, BigDecimal> entry : rates.entrySet()) {
+			String name = entry.getKey();
+			BigDecimal value = entry.getValue();
+			BigDecimal converted = value.divide(rateOfExchange, 6, RoundingMode.HALF_UP);
+			rates.put(name, converted);
+		}
+
+		return rates;
+	}
+
+	private String createFileName(String fileName, String date) {
+		StringBuilder result = new StringBuilder(fileName);
+		result.append("_");
+		result.append(date);
+		result.append(".xlsx");
+		return result.toString();
+	}
 }

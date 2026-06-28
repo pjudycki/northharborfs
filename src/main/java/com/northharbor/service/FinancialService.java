@@ -20,9 +20,13 @@ import org.springframework.web.client.RestTemplate;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,6 +51,9 @@ public class FinancialService {
 
     private String API_HOST;
     private String API_KEY;
+    
+    private static final Set<String> ALLOWED_CURRENCIES = Set.of("EUR", "USD", "GBP", "CHF");
+    
 
     @PostConstruct
     public void init() {
@@ -201,9 +208,24 @@ public class FinancialService {
         return reportGenerator.generateHistoricalReport(historical, fileName, base, date);
     }
 
-    public String generateLatestReport(String fileName, String base) throws IOException {
+    public Path generateLatestReport(String fileName, String base) throws IOException {
         CurrencyList latest = retrieveLatest(null, null);
         return reportGenerator.generateLatestReport(latest, fileName, base);
+    }
+    
+    public static String validateCurrency(String base) {
+    	
+    	if (base == null) {
+    		throw new IllegalArgumentException("Base currency is required");
+    	}
+    	
+    	String currency = base.trim().toUpperCase(Locale.ROOT);
+    	
+    	if (!ALLOWED_CURRENCIES.contains(currency)) {
+    		throw new IllegalArgumentException("Unsupported base currency code");    		
+    	}
+    	
+    	return currency;
     }
 
 
