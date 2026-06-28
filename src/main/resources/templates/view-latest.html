@@ -31,11 +31,33 @@
 	
 </script>
 
-<script type="text/javascript">
+<script type="text/javascript" th:inline="javascript">
 	$(document)
 			.ready(
 					function() {
-						$('#latest_table').DataTable();
+						const reportUrl = /*[[@{generateLatestReport}]]*/'/generateLatestReport';
+						const latestUrl = /*[[@{viewLatest}]]*/ 'viewLatest';
+						
+						$('#latest_table').DataTable({
+							
+							initComplete: function () {
+								let selectedCurrency = $('#currencySelect').val();					
+								
+								const button = $('<a>', {
+									id: 'downloadReportBtn',
+									class: 'btn btn-sm btn-primary ml-2',
+									text: 'Get Report',
+									href: reportUrl + '?base=' + encodeURIComponent(selectedCurrency)									
+									
+								}) ;
+									
+								
+								$('#latest_table_filter').append(button);
+							}
+							
+						});
+						
+						
 						$('#currencySelect')
 								.on(
 										'change',
@@ -45,7 +67,7 @@
 											console.log(selectedCurrency);
 											$('.currency-column').text(
 													selectedCurrency);
-											window.location.href = '/northharbordemo/viewLatest?currency='
+											window.location.href = latestUrl + '?currency='
 													+ selectedCurrency;
 										});
 					});
@@ -64,7 +86,8 @@
 
 			<div class="card-body">
 
-				<table id="latest_table">
+				<table id="latest_table"
+					class="table table-striped table-hover table-bordered">
 					<thead>
 						<tr>
 							<th>Currency From <br> <select id="currencySelect"

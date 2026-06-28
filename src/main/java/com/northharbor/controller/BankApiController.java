@@ -6,12 +6,15 @@ import com.northharbor.service.FinancialService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -113,14 +116,26 @@ public class BankApiController {
     public ResponseEntity<InputStreamResource> generateLatestReport(@RequestParam String base) throws FileNotFoundException {
 
         String fileName;
+        
         try {
-            fileName = service.generateLatestReport("currencies", base);
+        	
+        	fileName = service.generateLatestReport("currencies", base);
+        	File file = new File(fileName);
+        	
+            InputStreamResource resource = new InputStreamResource(new FileInputStream(file));
+            
+            return ResponseEntity.ok()
+            		.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getName() + "\"")
+            		.contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+            		.contentLength(file.length())
+            		.body(resource);        	
+            
         } catch (IOException e) {
             log.error(e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
-        InputStreamResource resource = new InputStreamResource(new FileInputStream(fileName));
-        return ResponseEntity.ok().body(resource);
+        
+    
     }
 
     @GetMapping("/generateHistoricalReport")
@@ -130,11 +145,18 @@ public class BankApiController {
         String fileName;
         try {
             fileName = service.generateHistoricalReport("currencies", base, date);
+        	File file = new File(fileName);
+        	
+            InputStreamResource resource = new InputStreamResource(new FileInputStream(file));
+            
+            return ResponseEntity.ok()
+            		.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getName() + "\"")
+            		.contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+            		.contentLength(file.length())
+            		.body(resource);   
         } catch (IOException e) {
             log.error(e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
-        InputStreamResource resource = new InputStreamResource(new FileInputStream(fileName));
-        return ResponseEntity.ok().body(resource);
     }
 }
