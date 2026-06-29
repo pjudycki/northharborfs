@@ -91,16 +91,15 @@ public class FinancialService {
         return retrieve(API_HOST + "/latest?access_key=" + API_KEY, base, symbols, CurrencyList.class);
     }
     public List<CurrencyItem> retrieveLatestAsCurrencyItem(String selectedCurrency) {
-        //by default EUR is base currency
-        CurrencyList currencyList = retrieveLatest(null, null);
-        BigDecimal selectedRate = currencyList.getRates().get(selectedCurrency);
+        //if null by default EUR is base currency
+        CurrencyList currencyList = retrieveLatest(selectedCurrency, null);   
 
         List<CurrencyItem> baseList =  currencyList.getRates().entrySet()
                 .stream()
                 .map(item-> CurrencyItem.builder()
                         .fromCurrency(currencyList.getBase())
                         .toCurrency(item.getKey())
-                        .rate(calculateRate(selectedCurrency, selectedRate, item.getValue()))
+                        .rate(item.getValue())
                         .date(currencyList.getDate()).build()).collect(Collectors.toList());
 
         return baseList;
