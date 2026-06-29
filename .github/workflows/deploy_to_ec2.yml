@@ -1,0 +1,154 @@
+name: Build and deploy JAR to EC2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: northharbor-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-to-ec2:
+    name: Build and deploy to EC2
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      REMOTE_DIRECTORY: /opt/northharbor
+      REMOTE_JAR: /opt/northharbor/northharbordemo.jar
+      UPLOADED_JAR: /opt/northharbor/northharbordemo.jar.new
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Amazon Corretto 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: corretto
+          java-version: "25"
+          cache: maven
+
+      - name: Display Java version
+        run: java --version
+
+      - name: Build application
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          if [[ -f "./mvnw" ]]; then
+            chmod +x ./mvnw
+            ./mvnw --batch-mode clean package
+          else
+            mvn --batch-mode clean package
+          fi
+
+      - name: Find application JAR
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          mkdir -p deploy
+
+          mapfile -t JARS < <(
+            find target \
+              -maxdepth 1 \
+              -type f \
+              -name "*.jar" \
+              ! -name "original-*.jar" \
+              ! -name "*-sources.jar" \
+              ! -name "*-javadoc.jar"
+          )
+
+          if [[ "${#JARS[@]}" -eq 0 ]]; then
+            echo "Nie znaleziono pliku JAR w katalogu target."
+            exit 1
+          fi
+
+          if [[ "${#JARS[@]}" -gt 1 ]]; then
+            echo "Znaleziono więcej niż jeden możliwy JAR:"
+            printf '%s\n' "${JARS[@]}"
+            echo "Ustaw jednoznaczną nazwę JAR-a w pom.xml."
+            exit 1
+          fi
+
+          cp "${JARS[0]}" deploy/northharbordemo.jar
+
+          test -s deploy/northharbordemo.jar
+          ls -lh deploy/northharbordemo.jar
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          install -m 700 -d ~/.ssh
+
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" \
+            > ~/.ssh/ec2_deploy_key
+          chmod 600 ~/.ssh/ec2_deploy_key
+
+          printf '%s\n' "${{ secrets.EC2_KNOWN_HOSTS }}" \
+            > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Test SSH connection and target directory
+        shell: bash
+        run: |
+          ssh \
+            -i ~/.ssh/ec2_deploy_key \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            "$EC2_USER@$EC2_HOST" \
+            "test -d '$REMOTE_DIRECTORY' && test -w '$REMOTE_DIRECTORY'"
+
+      - name: Upload JAR
+        shell: bash
+        run: |
+          scp \
+            -i ~/.ssh/ec2_deploy_key \
+            -o IdentitiesOnly=yes \
+            deploy/northharbordemo.jar \
+            "$EC2_USER@$EC2_HOST:$UPLOADED_JAR"
+
+      - name: Deploy JAR and restart services
+        shell: bash
+        run: |
+          ssh \
+            -i ~/.ssh/ec2_deploy_key \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            "$EC2_USER@$EC2_HOST" \
+            'bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+
+          REMOTE_JAR="/opt/northharbor/northharbordemo.jar"
+          UPLOADED_JAR="/opt/northharbor/northharbordemo.jar.new"
+
+          test -s "$UPLOADED_JAR"
+
+          mv "$UPLOADED_JAR" "$REMOTE_JAR"
+          chmod 644 "$REMOTE_JAR"
+          ls -lh "$REMOTE_JAR"
+
+          sudo /usr/sbin/nginx -t
+          sudo /usr/bin/systemctl enable nginx
+          sudo /usr/bin/systemctl restart nginx
+
+          sudo /usr/bin/systemctl daemon-reload
+          sudo /usr/bin/systemctl enable springboot
+          sudo /usr/bin/systemctl restart springboot
+          sudo /usr/bin/systemctl status springboot --no-pager --full
+          REMOTE
+
+      - name: Remove SSH key
+        if: always()
+        shell: bash
+        run: |
+          rm -f ~/.ssh/ec2_deploy_key
