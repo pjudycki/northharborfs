@@ -11,3 +11,7 @@ sudo systemctl start springboot
 sudo systemctl status springboot
 
 sudo journalctl -u springboot -n 100 --no-pager
+
+sudo journalctl -u springboot.service -b --no-pager
+
+ sudo journalctl -u springboot.service -n 200 --no-pager

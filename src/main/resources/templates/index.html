@@ -1,8 +1,13 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-<title>North Harbor Financial Services</title>
+<title>North Harbor Financial Services Demo</title>
 <link th:href="@{/css/common.css}" rel="stylesheet" type="text/css">
+<link
+    rel="preload"
+    as="image"
+    href="/northharbordemo/background-q82.webp"
+    fetchpriority="high">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"
 	integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
 	crossorigin="anonymous"></script>
@@ -10,9 +15,14 @@
 <style>
 body {
 	background-color: #8fa8c4;
-	background-image: url("/northharbordemo/background.png");
+	background-image: url("/northharbordemo/background-q82.webp");
 	background-position: center 80px;
 	background-repeat: no-repeat;
+}
+@media (max-width: 768px) {
+    body {
+        background-image: url("/northharbordemo/background-768-q82.webp");
+    }
 }
 </style>
 <script>
@@ -36,7 +46,7 @@ body {
 	</div>
 	<div class="title">
 		<h1 style="font-family: Georgia, 'Times New Roman', serif;">
-			North Harbor Financial Services</h1>
+			North Harbor Financial Services Demo</h1>
 	</div>
 </body>
 </html>
