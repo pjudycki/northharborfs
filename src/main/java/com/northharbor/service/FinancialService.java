@@ -1,6 +1,5 @@
 package com.northharbor.service;
 
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.northharbor.generator.ReportGenerator;
@@ -22,224 +21,210 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class FinancialService {
 
-    @Autowired
-    private NorthHarborConfigurationProperties properties;
+	@Autowired
+	private NorthHarborConfigurationProperties properties;
 
-    @Autowired
-    private ObjectMapper mapper;
+	@Autowired
+	private ObjectMapper mapper;
 
-    @Autowired
-    private RestTemplate restTemplate;
-    
-    @Autowired
-    private ReportGenerator reportGenerator;
+	@Autowired
+	private RestTemplate restTemplate;
 
-    @Autowired
-    private SymbolRepository symbolRepository;
+	@Autowired
+	private ReportGenerator reportGenerator;
 
+	@Autowired
+	private SymbolRepository symbolRepository;
 
-    private String API_HOST;
-    private String API_KEY;
-    
-    private static final Set<String> ALLOWED_CURRENCIES = Set.of("EUR", "USD", "GBP", "CHF");
-    
+	private String apiHost;
+	private String apiKey;
 
-    @PostConstruct
-    public void init() {
-        API_KEY = properties.getKey();
-        API_HOST = properties.getEndpoint();
-    }
+	private static String TIME_ZONE = "UTC";
 
-    public <T> T retrieve(String basePath, String base, String symbols, Class<T> clazz) {
+	private static final Set<String> ALLOWED_CURRENCIES = Set.of("EUR", "USD", "GBP", "CHF");
 
-        StringBuilder latestURL = new StringBuilder(basePath);
+	@PostConstruct
+	public void init() {
+		apiHost = properties.getEndpoint();
+		apiKey = properties.getKey();
+	}
 
-        if (base != null) {
-            latestURL.append("&base=");
-            latestURL.append(base);
-        }
+	public <T> T retrieve(String basePath, String base, String symbols, Class<T> clazz) {
 
-        if (symbols != null) {
-            latestURL.append("&symbols=");
-            latestURL.append(symbols);
-        }
+		StringBuilder latestURL = new StringBuilder(basePath);
 
-        ResponseEntity<T> response = restTemplate.getForEntity(latestURL.toString(), clazz);
-        HttpStatusCode statusCode = response.getStatusCode();
-        HttpHeaders httpHeaders = response.getHeaders();
+		if (base != null) {
+			latestURL.append("&base=");
+			latestURL.append(base);
+		}
 
-        logHttpHeadersAndStatus(httpHeaders, statusCode);
-        return response.getBody();
-    }
+		if (symbols != null) {
+			latestURL.append("&symbols=");
+			latestURL.append(symbols);
+		}
 
-    public CurrencyList retrieveHistorical(String base, String symbols, String date) {
-        return retrieve(API_HOST + "/" + date + "?access_key=" + API_KEY, base, symbols, CurrencyList.class);
-    }
+		ResponseEntity<T> response = restTemplate.getForEntity(latestURL.toString(), clazz);
+		HttpStatusCode statusCode = response.getStatusCode();
+		HttpHeaders httpHeaders = response.getHeaders();
 
-    public CurrencyList retrieveLatest(String base, String symbols) {
-        return retrieve(API_HOST + "/latest?access_key=" + API_KEY, base, symbols, CurrencyList.class);
-    }
-    public List<CurrencyItem> retrieveLatestAsCurrencyItem(String selectedCurrency) {
-        //if null by default EUR is base currency
-        CurrencyList currencyList = retrieveLatest(selectedCurrency, null);   
+		logHttpHeadersAndStatus(httpHeaders, statusCode);
+		return response.getBody();
+	}
 
-        List<CurrencyItem> baseList =  currencyList.getRates().entrySet()
-                .stream()
-                .map(item-> CurrencyItem.builder()
-                        .fromCurrency(currencyList.getBase())
-                        .toCurrency(item.getKey())
-                        .rate(item.getValue())
-                        .date(currencyList.getDate()).build()).collect(Collectors.toList());
+	public CurrencyList retrieveHistorical(String base, String symbols, String date) {
+		return retrieve(apiHost + "/" + date + "?access_key=" + apiKey, base, symbols, CurrencyList.class);
+	}
 
-        return baseList;
-    }
+	public CurrencyList retrieveLatest(String base, String symbols) {
+		return retrieve(apiHost + "/latest?access_key=" + apiKey, base, symbols, CurrencyList.class);
+	}
 
-    public BigDecimal calculateRate(
-            String selectedCurrency,
-            BigDecimal fromCurrency,
-            BigDecimal toCurrency) {
+	public List<CurrencyItem> retrieveLatestAsCurrencyItem(String selectedCurrency) {
+		// if null by default EUR is base currency
+		CurrencyList currencyList = retrieveLatest(selectedCurrency, null);
 
-        if (fromCurrency == null || toCurrency == null) {
-            throw new IllegalArgumentException("Currency rates cannot be null.");
-        }
+		return currencyList
+				.getRates().entrySet().stream().map(item -> CurrencyItem.builder().fromCurrency(currencyList.getBase())
+						.toCurrency(item.getKey()).rate(item.getValue()).date(currencyList.getDate()).build())
+				.collect(Collectors.toList());
 
-        if (selectedCurrency.equals("EUR")) {
-            return toCurrency;
-        }
+	}
 
-        if (fromCurrency.compareTo(BigDecimal.ZERO) == 0) {
-            throw new IllegalArgumentException("Base currency rate ('fromCurrency') cannot be zero.");
-        }
+	public BigDecimal calculateRate(String selectedCurrency, BigDecimal fromCurrency, BigDecimal toCurrency) {
 
-        return toCurrency.divide(
-                fromCurrency,
-                6,
-                RoundingMode.HALF_UP);
-    }
+		if (fromCurrency == null || toCurrency == null) {
+			throw new IllegalArgumentException("Currency rates cannot be null.");
+		}
 
-    public List<CurrencyItem> retrieveHistoricalAsCurrencyItem() {
-        CurrencyList currencyList = retrieveHistorical(null, null, LocalDate.now().minusDays(1).toString());
-        return currencyList.getRates().entrySet()
-                .stream()
-                .map(item-> CurrencyItem.builder()
-                        .fromCurrency(currencyList.getBase())
-                        .toCurrency(item.getKey())
-                        .rate(item.getValue())
-                        .date(currencyList.getDate()).build()).collect(Collectors.toList());
-    }
+		if (selectedCurrency.equals("EUR")) {
+			return toCurrency;
+		}
 
-    public BigDecimal computeChange(String base, String symbol, String startDate, String endDate) throws JsonProcessingException {
-        CurrencyList start = retrieveHistorical(base, symbol, startDate);
-        CurrencyList end = retrieveHistorical(base, symbol, endDate);
-        BigDecimal diff;
+		if (fromCurrency.compareTo(BigDecimal.ZERO) == 0) {
+			throw new IllegalArgumentException("Base currency rate ('fromCurrency') cannot be zero.");
+		}
 
-        Map<String, BigDecimal> startMap = start.getRates();
-        Map<String, BigDecimal> endMap = end.getRates();
-        BigDecimal startCurrency = startMap.get(symbol);
-        BigDecimal endCurrency = endMap.get(symbol);
-        diff = endCurrency.subtract(startCurrency);
+		return toCurrency.divide(fromCurrency, 6, RoundingMode.HALF_UP);
+	}
 
-        return diff;
-    }
+	public List<CurrencyItem> retrieveHistoricalAsCurrencyItem() {
+		CurrencyList currencyList = retrieveHistorical(null, null, LocalDate.now(ZoneId.of(TIME_ZONE )).minusDays(1).toString());
+		return currencyList
+				.getRates().entrySet().stream().map(item -> CurrencyItem.builder().fromCurrency(currencyList.getBase())
+						.toCurrency(item.getKey()).rate(item.getValue()).date(currencyList.getDate()).build())
+				.collect(Collectors.toList());
+	}
 
-    public BigDecimal computeConversion(String base, String symbol, String amount) {
-        CurrencyList result = retrieveLatest(base, symbol);
-        Map<String, BigDecimal> rates = result.getRates();
-        BigDecimal rate = rates.get(symbol);
-        return rate.multiply(new BigDecimal(amount));
-    }
+	public BigDecimal computeChange(String base, String symbol, String startDate, String endDate)
+			throws JsonProcessingException {
+		CurrencyList start = retrieveHistorical(base, symbol, startDate);
+		CurrencyList end = retrieveHistorical(base, symbol, endDate);
+		BigDecimal diff;
 
-    public ConvertItem convert(String from, String to, String amount) {
-        StringBuilder builder = new StringBuilder(API_HOST + "/convert?access_key=" + API_KEY);
-        builder.append("&from=");
-        builder.append(from);
-        builder.append("&to=");
-        builder.append(to);
-        builder.append("&amount=");
-        builder.append(amount);
+		Map<String, BigDecimal> startMap = start.getRates();
+		Map<String, BigDecimal> endMap = end.getRates();
+		BigDecimal startCurrency = startMap.get(symbol);
+		BigDecimal endCurrency = endMap.get(symbol);
+		diff = endCurrency.subtract(startCurrency);
 
-        return retrieve(builder.toString(), null, null, ConvertItem.class);
-    }
+		return diff;
+	}
 
-    public TimeseriesList getTimeSeries(String startDate, String endDate) {
-        StringBuilder builder = new StringBuilder(API_HOST + "/timeseries?access_key=" + API_KEY);
-        builder.append("&start_date=");
-        builder.append(startDate);
-        builder.append("&end_date=");
-        builder.append(endDate);
+	public BigDecimal computeConversion(String base, String symbol, String amount) {
+		CurrencyList result = retrieveLatest(base, symbol);
+		Map<String, BigDecimal> rates = result.getRates();
+		BigDecimal rate = rates.get(symbol);
+		return rate.multiply(new BigDecimal(amount));
+	}
 
-        return retrieve(builder.toString(), null, null, TimeseriesList.class);
-    }
+	public ConvertItem convert(String from, String to, String amount) {
+		StringBuilder builder = new StringBuilder(apiHost + "/convert?access_key=" + apiKey);
+		builder.append("&from=");
+		builder.append(from);
+		builder.append("&to=");
+		builder.append(to);
+		builder.append("&amount=");
+		builder.append(amount);
 
-    public FluctuationList getFluctuation(String startDate, String endDate) {
-        StringBuilder builder = new StringBuilder(API_HOST + "/fluctuation?access_key=" + API_KEY);
-        builder.append("&start_date=");
-        builder.append(startDate);
-        builder.append("&end_date=");
-        builder.append(endDate);
+		return retrieve(builder.toString(), null, null, ConvertItem.class);
+	}
 
-        return retrieve(builder.toString(), null, null, FluctuationList.class);
-    }
+	public TimeseriesList getTimeSeries(String startDate, String endDate) {
+		StringBuilder builder = new StringBuilder(apiHost + "/timeseries?access_key=" + apiKey);
+		builder.append("&start_date=");
+		builder.append(startDate);
+		builder.append("&end_date=");
+		builder.append(endDate);
 
-    public List<SymbolItem> getSymbols() {
-        StringBuilder builder = new StringBuilder(API_HOST + "/symbols?access_key=" + API_KEY);
+		return retrieve(builder.toString(), null, null, TimeseriesList.class);
+	}
 
-        SymbolList symbolList =  retrieve(builder.toString(), null, null, SymbolList.class);
+	public FluctuationList getFluctuation(String startDate, String endDate) {
+		StringBuilder builder = new StringBuilder(apiHost + "/fluctuation?access_key=" + apiKey);
+		builder.append("&start_date=");
+		builder.append(startDate);
+		builder.append("&end_date=");
+		builder.append(endDate);
 
-        return symbolList.getSymbols().entrySet().stream()
-                .map(s -> SymbolItem.builder().currencyCode(s.getKey()).currencyName(s.getValue()).build())
-                .collect(Collectors.toList());
-    }
-    
-    public String generateHistoricalReport(String fileName, String base, String date) throws IOException {
-        CurrencyList historical = retrieveHistorical(base, null, date);
-        return reportGenerator.generateHistoricalReport(historical, fileName, base, date);
-    }
+		return retrieve(builder.toString(), null, null, FluctuationList.class);
+	}
 
-    public Path generateLatestReport(String fileName, String base) throws IOException {
-        CurrencyList latest = retrieveLatest(null, null);
-        return reportGenerator.generateLatestReport(latest, fileName, base);
-    }
-    
-    public static String validateCurrency(String base) {
-    	
-    	if (base == null) {
-    		throw new IllegalArgumentException("Base currency is required");
-    	}
-    	
-    	String currency = base.trim().toUpperCase(Locale.ROOT);
-    	
-    	if (!ALLOWED_CURRENCIES.contains(currency)) {
-    		throw new IllegalArgumentException("Unsupported base currency code");    		
-    	}
-    	
-    	return currency;
-    }
+	public List<SymbolItem> getSymbols() {
+		StringBuilder builder = new StringBuilder(apiHost + "/symbols?access_key=" + apiKey);
 
+		SymbolList symbolList = retrieve(builder.toString(), null, null, SymbolList.class);
 
-    private void logHttpHeadersAndStatus(HttpHeaders httpHeaders, HttpStatusCode statusCode) {
+		return symbolList.getSymbols().entrySet().stream()
+				.map(s -> SymbolItem.builder().currencyCode(s.getKey()).currencyName(s.getValue()).build())
+				.collect(Collectors.toList());
+	}
 
-        int statsCodeValue = statusCode.value();
+	public String generateHistoricalReport(String fileName, String base, String date) throws IOException {
+		CurrencyList historical = retrieveHistorical(base, null, date);
+		return reportGenerator.generateHistoricalReport(historical, fileName, base, date);
+	}
 
-        String responseHeaders = httpHeaders.getAccessControlRequestHeaders().stream()
-                .collect(Collectors.joining());
+	public Path generateLatestReport(String fileName, String base) throws IOException {
+		CurrencyList latest = retrieveLatest(null, null);
+		return reportGenerator.generateLatestReport(latest, fileName, base);
+	}
 
-        StringBuilder builder = new StringBuilder();
-        builder.append("Response HTTP Status Code: ").append(statsCodeValue);
-        builder.append("\n");
-        builder.append("Response HTTP Headers list: ").append(responseHeaders);
-        log.info(builder.toString());
-    }
+	public static String validateCurrency(String base) {
+
+		if (base == null) {
+			throw new IllegalArgumentException("Base currency is required");
+		}
+
+		String currency = base.trim().toUpperCase(Locale.ROOT);
+
+		if (!ALLOWED_CURRENCIES.contains(currency)) {
+			throw new IllegalArgumentException("Unsupported base currency code");
+		}
+
+		return currency;
+	}
+
+	private void logHttpHeadersAndStatus(HttpHeaders httpHeaders, HttpStatusCode statusCode) {
+
+		int statsCodeValue = statusCode.value();
+
+		String responseHeaders = httpHeaders.getAccessControlRequestHeaders().stream().collect(Collectors.joining());
+
+		StringBuilder builder = new StringBuilder();
+		builder.append("Response HTTP Status Code: ").append(statsCodeValue);
+		builder.append("\n");
+		builder.append("Response HTTP Headers list: ").append(responseHeaders);
+		log.info(builder.toString());
+	}
 }
-

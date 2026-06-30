@@ -12,7 +12,6 @@ import com.northharbor.model.SymbolItem;
 import com.northharbor.repository.CurrencyRepository;
 import com.northharbor.repository.RetrievalRepository;
 import com.northharbor.repository.SymbolRepository;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,8 +22,6 @@ import jakarta.persistence.Query;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-
 import static java.time.temporal.ChronoUnit.DAYS;
 
 @Service
@@ -69,7 +66,7 @@ public class GetExchangeRates {
     public void initializeSymbolsTable() {
         List<SymbolItem> symbolItems = financialService.getSymbols();
         List<SymbolEntity> symbols =
-                symbolItems.stream().map(SymbolFactory::createSymbolEntity).collect(Collectors.toList());
+                symbolItems.stream().map(SymbolFactory::createSymbolEntity).toList();
         symbolRepository.saveAll(symbols);
     }
 

@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -28,6 +29,7 @@ public class ReportGenerator {
 	private static final String TITLE = "Rates of Exchange by exchangeratesapi.io";
 	private static final String DATE = "Date";
 	private static final Path REPORT_DIRECTORY = Paths.get("reports").toAbsolutePath().normalize();
+	private static final String TIME_ZONE = "UTC";
 
 	public String generateHistoricalReport(CurrencyList historical, String fileName, String base, String date)
 			throws IOException {
@@ -48,7 +50,7 @@ public class ReportGenerator {
 
 	public Path generateLatestReport(CurrencyList latest, String fileName, String base) throws IOException {
 
-		String resultFileName = createFileName(fileName + "_" + base, LocalDate.now().toString());
+		String resultFileName = createFileName(fileName + "_" + base, LocalDate.now(ZoneId.of(TIME_ZONE)).toString());
 		Files.createDirectories(REPORT_DIRECTORY);
 		Path reportPath = REPORT_DIRECTORY.resolve(resultFileName).normalize();
 
@@ -77,7 +79,7 @@ public class ReportGenerator {
 
 		Row secondRow = currenciesSheet.createRow(rCounter++);
 
-		LocalDateTime snapshotDate = LocalDateTime.now();
+		LocalDateTime snapshotDate = LocalDateTime.now(ZoneId.of("UTC"));
 		Cell secondCell = secondRow.createCell(cCounter++);
 		secondCell.setCellValue(DATE);
 

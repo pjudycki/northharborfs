@@ -4,6 +4,10 @@ import com.northharbor.entity.RetrievalEntity;
 import com.northharbor.model.CurrencyList;
 
 public class RetrievalFactory {
+	
+	private RetrievalFactory() {
+		
+	}
 
     public static RetrievalEntity toRetrievalEntity(CurrencyList currencyList) {
         RetrievalEntity retrievalEntity = new RetrievalEntity();

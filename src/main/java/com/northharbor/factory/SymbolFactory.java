@@ -4,6 +4,10 @@ import com.northharbor.entity.SymbolEntity;
 import com.northharbor.model.SymbolItem;
 
 public class SymbolFactory {
+	
+	private SymbolFactory() {
+		
+	}
 
     public static SymbolEntity createSymbolEntity(SymbolItem symbolItem) {
         SymbolEntity symbolEntity = new SymbolEntity();

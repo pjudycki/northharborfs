@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 public class CurrencyFactory {
+	
+	private CurrencyFactory() {
+		
+	}
 
     public static List<CurrencyEntity> toCurrencyEntity(CurrencyList currencyList, RetrievalEntity retrieval) {
         Map<String, BigDecimal> rates = currencyList.getRates();
