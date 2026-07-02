@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+<meta charset="UTF-8">
+<title>Profil</title>
+</head>
+
+<h1>Profil</h1>
+
+<p>
+	Logged user: <strong sec:authentication="name"></strong>
+</p>
+<p>
+	Authorities <span sec:authentication="authorities"></span>
+</p>
+
+</html>
