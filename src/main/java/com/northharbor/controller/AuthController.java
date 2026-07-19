@@ -6,11 +6,9 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
-
 import com.northharbor.exception.DuplicateUserException;
 import com.northharbor.form.RegistrationForm;
 import com.northharbor.service.RegistrationService;
-
 import jakarta.validation.Valid;
 
 @Controller
@@ -42,7 +40,7 @@ public class AuthController {
 		}
 
 		try {
-
+		    registrationService.register(form);
 		} catch (DuplicateUserException exception) {
 			bindingResult.rejectValue(exception.getField(), "duplicate", exception.getMessage());
 			form.setPassword("");

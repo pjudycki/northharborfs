@@ -1,12 +1,11 @@
 package com.northharbor.service;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import com.northharbor.entity.NhUserEntity;
 import com.northharbor.enums.Role;
 import com.northharbor.exception.DuplicateUserException;
@@ -16,36 +15,48 @@ import com.northharbor.repository.NhUserRepository;
 @Service
 public class RegistrationService {
 
-	private final NhUserRepository userRepository;
-	private final PasswordEncoder passwordEncoder;
+  private final NhUserRepository userRepository;
+  private final PasswordEncoder passwordEncoder;
 
-	public RegistrationService(NhUserRepository userRepository, PasswordEncoder passwordEncoder) {
-		super();
-		this.userRepository = userRepository;
-		this.passwordEncoder = passwordEncoder;
-	}
+  public RegistrationService(NhUserRepository userRepository, PasswordEncoder passwordEncoder) {
+    super();
+    this.userRepository = userRepository;
+    this.passwordEncoder = passwordEncoder;
+  }
 
-	@Transactional
-	public void register(RegistrationForm form) {
+  @Transactional
+  public void register(RegistrationForm form) {
 
-		String userName = form.getUsername().trim().toLowerCase(Locale.ROOT);
+    Objects.requireNonNull(form, "Registration form must not be null");
 
-		String email = form.getEmail().trim();
+    String userName = requireText(form.getUsername(), "username").trim().toLowerCase(Locale.ROOT);
 
-		if (userRepository.existsByUsernameIgnoreCase(userName)) {
-			throw new DuplicateUserException("username", "The login is already used");
-		}
+    String email = requireText(form.getEmail(), "email").trim();
 
-		if (userRepository.existsByEmailIgnoreCase(email)) {
-			throw new DuplicateUserException("email", "The email is already used");
-		}
+    String rawPassword = requireText(form.getPassword(), "password").trim();
 
-		String passwordHash = passwordEncoder.encode(form.getPassword());
+    if (userRepository.existsByUsernameIgnoreCase(userName)) {
+      throw new DuplicateUserException("username", "The login is already used");
+    }
 
-		NhUserEntity user = new NhUserEntity(userName, email, passwordHash, true, Set.of(Role.USER));
-		
-		userRepository.save(user);
+    if (userRepository.existsByEmailIgnoreCase(email)) {
+      throw new DuplicateUserException("email", "The email is already used");
+    }
 
-	}
+    String passwordHash = Objects.requireNonNull(passwordEncoder.encode(rawPassword),
+        "Password encoder returned null for a non-null password");
+
+    NhUserEntity user = new NhUserEntity(userName, email, passwordHash, true, Set.of(Role.USER));
+
+    userRepository.save(user);
+
+  }
+
+  private static String requireText(String value, String fieldName) {
+    if (value == null || value.isBlank()) {
+      throw new IllegalArgumentException(fieldName + " must not be blank");
+    }
+    return value;
+  }
 
 }
