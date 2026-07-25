@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <title>Login page</title>
-<link rel="stylesheet" th:href="@{/css/style.css)">
+<link rel="stylesheet" th:href="@{/css/common.css}">
 </head>
 <body>
 	<h1>Login Page</h1>
 
 	<div th:if="${param.error}">Incorrect login or password</div>
 
-	<div th:if="{$param.logout}">User was successfully logout</div>
+	<div th:if="${param.logout}">User was successfully logout</div>
 
-	<form th:action="@{/login})" method="post">
+	<form th:action="@{/login}" method="post">
 
 		<label> Login: <input type="text" name="username" required>
-		</label> <label> Password: <input type="password" name="paswsword"
+		</label> <label> Password: <input type="password" name="password"
 			required>
 		</label>
 
